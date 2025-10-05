@@ -1,6 +1,5 @@
 package week5;
-
-import java.util.Arrays;
+// name: Kirsten Pleskot
 
 public class PointsOnCircle {
     public static void main(String[] args) throws InterruptedException {

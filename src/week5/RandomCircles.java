@@ -1,4 +1,6 @@
 package week5;
+// name: Kirsten Pleskot
+
 
 public class RandomCircles {
     public static void main(String[] args) {
