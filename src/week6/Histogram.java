@@ -1,4 +1,6 @@
 package week6;
+// name: Kisten Pleskot
+
 import java.util.Arrays;
 
 public class Histogram {
