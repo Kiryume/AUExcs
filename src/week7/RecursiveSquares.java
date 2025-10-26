@@ -1,10 +1,13 @@
 package week7;
+// name: Kisten Pleskot
+
 
 import stdlib.StdDraw;
 
 public class RecursiveSquares {
     private static final double RATIO = 2.2;
 
+    // draw the square according to the specified style
     public static void drawShadedSquare(double x, double y, double halfLen) {
         StdDraw.setPenColor(StdDraw.LIGHT_GRAY);
         StdDraw.filledSquare(x, y, halfLen);
@@ -17,6 +20,7 @@ public class RecursiveSquares {
             return;
         }
         double childHalfLen = halfLen / RATIO;
+        // draw the parent square on top of the children
         drawPattern1(n - 1, x - halfLen, y - halfLen, childHalfLen);
         drawPattern1(n - 1, x - halfLen, y + halfLen, childHalfLen);
         drawPattern1(n - 1, x + halfLen, y - halfLen, childHalfLen);
@@ -29,6 +33,7 @@ public class RecursiveSquares {
             return;
         }
         double childHalfLen = halfLen / RATIO;
+        // draw the parent square below the bottom right child and on top of the rest
         drawPattern2(n - 1, x - halfLen, y + halfLen, childHalfLen);
         drawPattern2(n - 1, x - halfLen, y - halfLen, childHalfLen);
         drawPattern2(n - 1, x + halfLen, y + halfLen, childHalfLen);
@@ -41,6 +46,7 @@ public class RecursiveSquares {
             return;
         }
         double childHalfLen = halfLen / RATIO;
+        // draw the parent square below all children
         drawShadedSquare(x, y, halfLen);
         drawPattern3(n - 1, x - halfLen, y - halfLen, childHalfLen);
         drawPattern3(n - 1, x - halfLen, y + halfLen, childHalfLen);
@@ -53,6 +59,7 @@ public class RecursiveSquares {
             return;
         }
         double childHalfLen = halfLen / RATIO;
+        // draw the parent square between the top and bottom children
         drawPattern4(n - 1, x - halfLen, y + halfLen, childHalfLen);
         drawPattern4(n - 1, x + halfLen, y + halfLen, childHalfLen);
         drawShadedSquare(x, y, halfLen);
@@ -61,7 +68,7 @@ public class RecursiveSquares {
     }
 
     public static void main(String[] args) {
-
+        // setup canvas with nice values to draw all four patterns side by side
         StdDraw.setCanvasSize(800, 200);
         StdDraw.setXscale(0, 4);
         StdDraw.setYscale(0, 1);

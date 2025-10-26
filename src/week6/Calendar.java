@@ -108,7 +108,7 @@ public class Calendar {
         int year = Integer.parseInt(args[1]);
 
         if (isLeapYear(year)) {
-            daysInMonth[1] = 29;
+            daysInMonth[2] = 29;
         }
         int startDay;
         if (year < 1582 || (year == 1582 && month <= 10)) {

@@ -1,4 +1,5 @@
 package week7;
+// name: Kisten Pleskot
 
 import stdlib.StdDraw;
 
@@ -25,15 +26,14 @@ public class Sierpinski {
 
     public static void main(String[] args) {
 
-        if (args.length == 0) {
-            System.out.println("Please provide a recursion depth 'n' as a command-line argument.");
-            System.out.println("Example: java Sierpinski 5");
+        if (args.length != 1) {
+            System.out.println("Usage: java Sierpinski <depth>");
             return;
         }
         int n = Integer.parseInt(args[0]);
 
         StdDraw.enableDoubleBuffering();
-
+        // height is equal to sin(60 degrees)
         double height = Math.sqrt(3.0) / 2.0;
         double x1 = 0.0, y1 = 0.0;
         double x2 = 1.0, y2 = 0.0;
