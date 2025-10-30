@@ -1,4 +1,5 @@
 package week9;
+// name: Kirsten Pleskot
 
 import stdlib.In;
 
