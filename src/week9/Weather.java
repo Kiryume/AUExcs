@@ -48,6 +48,7 @@ public class Weather {
 
 // There is nothing beautiful about this.
 // this is an is ugly soup
+// (but at least it's prettier then the UglierSoup)
 class UglySoup {
 
     // This is the Document Root. Top level nodes are allowed here (it just means doctype is valid here)
