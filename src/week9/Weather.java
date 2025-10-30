@@ -25,10 +25,7 @@ public class Weather {
             return;
         }
         // construct the ugly tag soup
-        var parseStartTime = System.currentTimeMillis();
         UglySoup soup = new UglySoup(source);
-        var parseEndTime = System.currentTimeMillis();
-        System.out.printf("Parsed HTML in %d ms.\n", parseEndTime - parseStartTime);
         System.out.printf("Observations near %s:\n", String.join(" ", args));
         // Print the table header
         System.out.printf("%-30s %-15s %-15s %-15s %-15s\n",
