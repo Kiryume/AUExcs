@@ -6,25 +6,42 @@ import java.util.*;
 
 public class Weather {
     public static void main(String[] args) {
-        if (args.length != 1) {
+        if (args.length < 1) {
             System.out.println("Usage: java Weather <city>");
             return;
         }
+        // support for multi-word cities like New York, Los Angeles, San Francisco etc.
+        String city = String.join("-", args);
+        // (this is needed in case the user passed the name like java Weather.java "New York")
+        city = city.replace(" ", "-").toLowerCase();
+
         String fstring = "https://www.flotvejr.dk/%s/observations";
-        String url = String.format(fstring, args[0]);
+        String url = String.format(fstring, city);
         String source = new In(url).readAll();
+        // Text contained if the city does not exist
+        if (source.contains("redirected")) {
+            System.out.printf("City %s not found.\n", String.join(" ", args));
+            return;
+        }
+        // construct the ugly tag soup
+        var parseStartTime = System.currentTimeMillis();
         UglySoup soup = new UglySoup(source);
-        String selector = ".nearby-observations-table tr";
-        System.out.println("Nearby weather observations:");
+        var parseEndTime = System.currentTimeMillis();
+        System.out.printf("Parsed HTML in %d ms.\n", parseEndTime - parseStartTime);
+        System.out.printf("Observations near %s:\n", String.join(" ", args));
+        // Print the table header
         System.out.printf("%-30s %-15s %-15s %-15s %-15s\n",
-                "Location", "Temperature", "Windspeed", "Minutes ago", "Away (km)");
+                "Location", "Temperature", "Winds peed", "Minutes ago", "Away (km)");
+        String selector = ".nearby-observations-table tr";
         for (var row : soup.getElements(selector)) {
+            // get the relevant data from each row
             var location = row.getElement(".nobr a").getTextContent();
             var temperature = row.getElement(".nearby-observations-temperature").getTextContent().trim();
             var windspeed = row.getElements(".nobr").getLast().getTextContent().trim();
             var whenwhereparts = row.getElement(".observation_ago").getTextContent().split(" ");
             var when = whenwhereparts[2];
             var where = whenwhereparts[5];
+            // print the table row
             System.out.printf("%-30s %-15s %-15s %-15s %-15s\n",
                     location, temperature, windspeed, when, where);
         }
@@ -102,8 +119,7 @@ class UglySoup {
     // This is any element it inherits form DocumentNode, so I don't have to write getElement/s twice
     static class ElementNode extends DocumentNode {
         public String tagName;
-        // As per the blogpost somewhere in some other comment I don't handle this properly <div /> is self closed as far as I'm concerned
-        // But <img> is self closed. Those tags are hard coded in the parser as void elements.
+        // signifies
         public boolean selfClosed = false;
 
         public Map<String, String> attributes = new LinkedHashMap<>();
@@ -150,10 +166,6 @@ class UglySoup {
 
         public TextNode(String text) {
             this.text = text;
-        }
-
-        public String getTextContent() {
-            return text.replaceAll("\\s+", " ");
         }
 
         @Override
@@ -367,12 +379,12 @@ class UglySoup {
         enum TokenKind {
             TAG_OPEN_START, // <
             TAG_CLOSE_START, // </
-            TAG_END, // >
-            // The slash is actually insignificant in HTML, so TAG_SELF_CLOSE could be just TAG_END
-            // But I realized too late and don't want to touch the code more than necessary
+            // The slash in /> is actually insignificant in HTML, so it does not need its own token
             // This is fun rant about it: https://blog.dwac.dev/posts/html-whitespace/
-            TAG_SELF_CLOSE, // />
+            TAG_END, // >
             COMMENT, // <!-- ... -->
+            // I might have a DOCTYPE node but that does not mean I respect it :)
+            // I think my parser is in quirks mode by default
             DOCTYPE, // <!DOCTYPE ... >
             TAG_NAME, // tag or attribute name
 
@@ -482,7 +494,7 @@ class UglySoup {
                 if (startsWith("/>")) {
                     pos += 2; // Consume />
                     inTag = false;
-                    return new Token(TokenKind.TAG_SELF_CLOSE, "/>");
+                    return new Token(TokenKind.TAG_END, "/>");
                 }
 
                 // We are closing a tag
@@ -639,13 +651,6 @@ class UglySoup {
             while (true) {
                 Tokenizer.Token next = tokenizer.peekToken();
                 switch (next.type) {
-                    // Tag is self closed and finished
-                    case TAG_SELF_CLOSE -> {
-                        tokenizer.nextToken();
-                        el.selfClosed = true;
-
-                        return el;
-                    }
                     // Tag ended normally
                     case TAG_END -> {
                         tokenizer.nextToken();
