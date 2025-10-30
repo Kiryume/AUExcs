@@ -6,14 +6,28 @@ import java.util.*;
 
 public class Weather {
     public static void main(String[] args) {
-        if (args.length <= 1) {
+        if (args.length != 1) {
             System.out.println("Usage: java Weather <city>");
             return;
         }
-        String source = new In(args[0]).readAll();
+        String fstring = "https://www.flotvejr.dk/%s/observations";
+        String url = String.format(fstring, args[0]);
+        String source = new In(url).readAll();
         UglySoup soup = new UglySoup(source);
-        System.out.println("Inner text of elements at path '" + args[1] + "':");
-        System.out.println(soup.getElements(args[1]).stream().map(UglySoup.DocumentNode::getTextContent).toList());
+        String selector = ".nearby-observations-table tr";
+        System.out.println("Nearby weather observations:");
+        System.out.printf("%-30s %-15s %-15s %-15s %-15s\n",
+                "Location", "Temperature", "Windspeed", "Minutes ago", "Away (km)");
+        for (var row : soup.getElements(selector)) {
+            var location = row.getElement(".nobr a").getTextContent();
+            var temperature = row.getElement(".nearby-observations-temperature").getTextContent().trim();
+            var windspeed = row.getElements(".nobr").getLast().getTextContent().trim();
+            var whenwhereparts = row.getElement(".observation_ago").getTextContent().split(" ");
+            var when = whenwhereparts[2];
+            var where = whenwhereparts[5];
+            System.out.printf("%-30s %-15s %-15s %-15s %-15s\n",
+                    location, temperature, windspeed, when, where);
+        }
     }
 }
 
@@ -63,7 +77,7 @@ class UglySoup {
                     sel.type = Selector.SelectorType.TAG;
                     sel.value = part;
                 } else {
-                    
+
                     continue;
                 }
                 selectors.add(sel);
@@ -91,7 +105,7 @@ class UglySoup {
         // As per the blogpost somewhere in some other comment I don't handle this properly <div /> is self closed as far as I'm concerned
         // But <img> is self closed. Those tags are hard coded in the parser as void elements.
         public boolean selfClosed = false;
-        
+
         public Map<String, String> attributes = new LinkedHashMap<>();
 
         @Override
@@ -411,7 +425,7 @@ class UglySoup {
             if (pos >= len) return new Token(TokenKind.EOF, "");
             char c = peekChar();
 
-            
+
             if (startsWith("<!--")) {
                 int start = pos + 4; // Consume <!--
                 int end = source.indexOf("-->", start);
@@ -429,17 +443,17 @@ class UglySoup {
                 return new Token(TokenKind.COMMENT, content);
             }
 
-            
+
             if (startsWith("<!DOCTYPE")) {
                 pos += 9; // Consume <!DOCTYPE
                 while (pos < len && Character.isWhitespace(peekChar())) pos++;
 
                 StringBuilder name = new StringBuilder();
                 while (pos < len && isNameChar(peekChar())) name.append(nextChar());
-                
+
                 pos += eatWhile(ch -> ch != '>');
-                
-                if (pos < len && peekChar() == '>' /*Always True*/) pos++; 
+
+                if (pos < len && peekChar() == '>' /*Always True*/) pos++;
                 inTag = false;
                 return new Token(TokenKind.DOCTYPE, name.toString());
             }
@@ -456,7 +470,7 @@ class UglySoup {
                 return new Token(TokenKind.TAG_OPEN_START, "<");
             }
 
-            
+
             if (inTag) {
                 // Consume whitespaces
                 if (Character.isWhitespace(c)) {
@@ -491,7 +505,7 @@ class UglySoup {
                         if (peekChar() == '&') sb.append(parseEntity());
                         else sb.append(nextChar());
                     }
-                    if (peekChar() == quote) pos++; 
+                    if (peekChar() == quote) pos++;
                     return new Token(TokenKind.ATTR_VALUE, sb.toString());
                 }
 
@@ -524,7 +538,7 @@ class UglySoup {
         // But it does not matter since we are not rendering the HTML
         private String parseEntity() {
             if (peekChar() != '&') return "";
-            pos++; 
+            pos++;
             StringBuilder sb = new StringBuilder();
             while (pos < len && peekChar() != ';' && sb.length() < 64) sb.append(nextChar());
             if (peekChar() == ';') pos++;
@@ -536,7 +550,7 @@ class UglySoup {
                 case "&quot;" -> "\"";
                 case "&apos;" -> "'";
                 case "&deg;" -> "°";
-                default -> token; 
+                default -> token;
             };
         }
 
@@ -634,7 +648,7 @@ class UglySoup {
                     }
                     // Tag ended normally
                     case TAG_END -> {
-                        tokenizer.nextToken(); 
+                        tokenizer.nextToken();
 
                         // Handle tags which self close always
                         if (VOID_TAGS.contains(el.tagName.toLowerCase())) {
@@ -650,7 +664,7 @@ class UglySoup {
                         String value = "";
                         // If there is an equals sign parse the value
                         if (tokenizer.peekToken().type == Tokenizer.TokenKind.ATTR_EQUALS) {
-                            tokenizer.nextToken(); 
+                            tokenizer.nextToken();
                             Tokenizer.Token valTok = tokenizer.nextToken();
                             if (valTok.type == Tokenizer.TokenKind.ATTR_VALUE || valTok.type == Tokenizer.TokenKind.TAG_NAME || valTok.type == Tokenizer.TokenKind.TEXT_CONTENT) {
                                 value = valTok.text;
@@ -661,17 +675,17 @@ class UglySoup {
                     default -> tokenizer.nextToken();
                 }
 
-                
+
             }
 
-            
+
             while (true) {
                 Tokenizer.Token peek = tokenizer.peekToken();
                 // Handle the different out tag contents
                 switch (peek.type) {
                     // Closing tag
                     case TAG_CLOSE_START -> {
-                        tokenizer.nextToken(); 
+                        tokenizer.nextToken();
                         String closeName = "";
                         if (tokenizer.peekToken().type == Tokenizer.TokenKind.TAG_NAME) {
                             closeName = tokenizer.nextToken().text;
@@ -701,13 +715,13 @@ class UglySoup {
                     // Text content
                     case TEXT_CONTENT, HTML_ENTITY -> {
                         Tokenizer.Token txt = tokenizer.nextToken();
-                        
+
                         if (txt.text.trim().isEmpty()) break;
                         el.children.add(new TextNode(txt.text));
                     }
                     // Just close everything on EOF
                     case EOF -> {
-                        return el; 
+                        return el;
                     }
                     // Skip unexpected tokens
                     default -> tokenizer.nextToken();
