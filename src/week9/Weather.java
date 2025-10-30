@@ -6,10 +6,14 @@ import java.util.*;
 
 public class Weather {
     public static void main(String[] args) {
+        if (args.length <= 1) {
+            System.out.println("Usage: java Weather <city>");
+            return;
+        }
         String source = new In(args[0]).readAll();
         UglySoup soup = new UglySoup(source);
         System.out.println("Inner text of elements at path '" + args[1] + "':");
-        System.out.println(soup.getElements(args[1]).stream().map(s -> s.getInnerText().trim()).toList());
+        System.out.println(soup.getElements(args[1]).stream().map(UglySoup.DocumentNode::getTextContent).toList());
     }
 }
 
@@ -24,120 +28,12 @@ class UglySoup {
         this.document = parser.parseDocument();
     }
 
-    public DocumentNode getDocument() {
-        return document;
-    }
-
-    public static void debugTokens(String source) {
-        Tokenizer t = new Tokenizer(source != null ? source : "");
-        Tokenizer.Token tok;
-        int i = 0;
-        do {
-            tok = t.nextToken();
-            System.out.printf("%03d: %s\n", i++, tok.toString());
-        } while (tok.type != Tokenizer.TokenKind.EOF);
-    }
-
     public List<ElementNode> getElements(String path) {
-        List<ElementNode> results = new ArrayList<>();
-        if (path == null || path.trim().isEmpty()) return results;
-        CssPath cssPath = new CssPath(path);
-        if (cssPath.selectors.isEmpty()) return results;
-        findElements(document, cssPath.selectors, 0, results);
-        return results;
-    }
-
-    private void findElements(Node node, List<CssPath.Selector> selectors, int index, List<ElementNode> results) {
-        if (node == null || index >= selectors.size()) return;
-
-        
-        if (node instanceof ElementNode el && matchesSelector(el, selectors.get(index))) {
-            if (index == selectors.size() - 1) {
-                results.add(el); 
-            } else {
-                
-                for (Node child : el.children) {
-                    findElements(child, selectors, index + 1, results);
-                }
-            }
-            
-            for (Node child : el.children) {
-                findElements(child, selectors, index, results);
-            }
-            return;
-        }
-
-        
-        if (node instanceof DocumentNode doc) {
-            for (Node child : doc.children) {
-                findElements(child, selectors, index, results);
-            }
-        } else if (node instanceof ElementNode el) {
-            for (Node child : el.children) {
-                findElements(child, selectors, index, results);
-            }
-        }
+        return document.getElements(path);
     }
 
     public ElementNode getElement(String path) {
-        if (path == null || path.trim().isEmpty()) return null;
-        CssPath cssPath = new CssPath(path);
-        if (cssPath.selectors.isEmpty()) return null;
-        return findElement(document, cssPath.selectors, 0);
-    }
-
-    private ElementNode findElement(Node node, List<CssPath.Selector> selectors, int index) {
-        if (node == null || index >= selectors.size()) return null;
-
-        
-        if (node instanceof ElementNode el && matchesSelector(el, selectors.get(index))) {
-            if (index == selectors.size() - 1) return el; 
-            
-            for (Node child : el.children) {
-                ElementNode found = findElement(child, selectors, index + 1);
-                if (found != null) return found;
-            }
-            
-            for (Node child : el.children) {
-                ElementNode found = findElement(child, selectors, index);
-                if (found != null) return found;
-            }
-            return null;
-        }
-
-        
-        if (node instanceof DocumentNode doc) {
-            for (Node child : doc.children) {
-                ElementNode found = findElement(child, selectors, index);
-                if (found != null) return found;
-            }
-        } else if (node instanceof ElementNode el) {
-            for (Node child : el.children) {
-                ElementNode found = findElement(child, selectors, index);
-                if (found != null) return found;
-            }
-        }
-        return null;
-    }
-
-    private boolean matchesSelector(ElementNode el, CssPath.Selector selector) {
-        return switch (selector.type) {
-            case TAG -> el.tagName.equalsIgnoreCase(selector.value);
-            case CLASS -> {
-                String classAttr = el.attributes.get("class");
-                if (classAttr != null) {
-                    String[] classes = classAttr.split("\\s+");
-                    boolean match = Arrays.asList(classes).contains(selector.value);
-                    yield match;
-                } else {
-                    yield false;
-                }
-            }
-            case ID -> {
-                String idAttr = el.attributes.get("id");
-                yield idAttr != null && idAttr.equals(selector.value);
-            }
-        };
+        return document.getElement(path);
     }
 
     
@@ -150,7 +46,7 @@ class UglySoup {
             if (trimmed.isEmpty()) return;
 
             for (String part : trimmed.split("\\s+")) {
-                if (part == null || part.isEmpty()) continue;
+                if (part.isEmpty()) continue;
 
                 Selector sel = new Selector();
                 if (part.startsWith("#") && part.length() > 1) {
@@ -182,24 +78,11 @@ class UglySoup {
         public abstract String toString(int ident);
     }
 
-    static class ElementNode extends Node {
+    static class ElementNode extends DocumentNode {
         public String tagName;
         public boolean selfClosed = false;
         
         public Map<String, String> attributes = new LinkedHashMap<>();
-        public List<Node> children = new ArrayList<>();
-
-        public String getInnerText() {
-            StringBuilder sb = new StringBuilder();
-            for (var child : children) {
-                if (child instanceof TextNode tn) {
-                    sb.append(tn.text);
-                } else if (child instanceof ElementNode en) {
-                    sb.append(en.getInnerText());
-                }
-            }
-            return sb.toString();
-        }
 
         @Override
         public String toString() {
@@ -243,7 +126,7 @@ class UglySoup {
         public String text;
 
         public TextNode(String text) {
-            this.text = text;
+            this.text = text.trim();
         }
 
         @Override
@@ -310,6 +193,111 @@ class UglySoup {
         public String toString(int ident) {
             return toString();
         }
+
+        public String getTextContent() {
+            StringBuilder sb = new StringBuilder();
+            for (var child : children) {
+                if (child instanceof TextNode tn) {
+                    sb.append(tn.text);
+                } else if (child instanceof ElementNode en) {
+                    sb.append(en.getTextContent());
+                }
+            }
+            return sb.toString();
+        }
+
+        public List<ElementNode> getElements(String path) {
+            List<ElementNode> results = new ArrayList<>();
+            if (path == null || path.trim().isEmpty()) return results;
+            CssPath cssPath = new CssPath(path);
+            if (cssPath.selectors.isEmpty()) return results;
+            findElements(this, cssPath.selectors, 0, results);
+            return results;
+        }
+
+        private void findElements(Node node, List<CssPath.Selector> selectors, int index, List<ElementNode> results) {
+            if (node == null || index >= selectors.size()) return;
+
+
+            if (node instanceof ElementNode el && matchesSelector(el, selectors.get(index))) {
+                if (index == selectors.size() - 1) {
+                    results.add(el);
+                } else {
+
+                    for (Node child : el.children) {
+                        findElements(child, selectors, index + 1, results);
+                    }
+                }
+
+                for (Node child : el.children) {
+                    findElements(child, selectors, index, results);
+                }
+                return;
+            }
+
+
+            if (node instanceof DocumentNode doc) {
+                for (Node child : doc.children) {
+                    findElements(child, selectors, index, results);
+                }
+            }
+        }
+
+        public ElementNode getElement(String path) {
+            if (path == null || path.trim().isEmpty()) return null;
+            CssPath cssPath = new CssPath(path);
+            if (cssPath.selectors.isEmpty()) return null;
+            return findElement(this, cssPath.selectors, 0);
+        }
+
+        private ElementNode findElement(Node node, List<CssPath.Selector> selectors, int index) {
+            if (node == null || index >= selectors.size()) return null;
+
+
+            if (node instanceof ElementNode el && matchesSelector(el, selectors.get(index))) {
+                if (index == selectors.size() - 1) return el;
+
+                for (Node child : el.children) {
+                    ElementNode found = findElement(child, selectors, index + 1);
+                    if (found != null) return found;
+                }
+
+                for (Node child : el.children) {
+                    ElementNode found = findElement(child, selectors, index);
+                    if (found != null) return found;
+                }
+                return null;
+            }
+
+
+            if (node instanceof DocumentNode doc) {
+                for (Node child : doc.children) {
+                    ElementNode found = findElement(child, selectors, index);
+                    if (found != null) return found;
+                }
+            }
+            return null;
+        }
+
+        private boolean matchesSelector(ElementNode el, CssPath.Selector selector) {
+            return switch (selector.type) {
+                case TAG -> el.tagName.equalsIgnoreCase(selector.value);
+                case CLASS -> {
+                    String classAttr = el.attributes.get("class");
+                    if (classAttr != null) {
+                        String[] classes = classAttr.split("\\s+");
+                        yield Arrays.asList(classes).contains(selector.value);
+                    } else {
+                        yield false;
+                    }
+                }
+                case ID -> {
+                    String idAttr = el.attributes.get("id");
+                    yield idAttr != null && idAttr.equals(selector.value);
+                }
+            };
+        }
+
     }
 
     static class Tokenizer {
@@ -335,21 +323,21 @@ class UglySoup {
         }
 
         enum TokenKind {
-            TAG_OPEN_START, 
-            TAG_CLOSE_START, 
-            TAG_END, 
-            TAG_SELF_CLOSE, 
-            COMMENT, 
-            DOCTYPE, 
-            TAG_NAME, 
+            TAG_OPEN_START, // <
+            TAG_CLOSE_START, // </
+            TAG_END, // >
+            TAG_SELF_CLOSE, // />
+            COMMENT, // <!-- ... -->
+            DOCTYPE, // <!DOCTYPE ... >
+            TAG_NAME, // tag or attribute name
 
-            ATTR_VALUE, 
-            ATTR_EQUALS, 
+            ATTR_VALUE, // attribute value
+            ATTR_EQUALS, // =
 
-            TEXT_CONTENT, 
-            HTML_ENTITY, 
+            TEXT_CONTENT, // text between tags
+            HTML_ENTITY, // &...;
 
-            EOF 
+            EOF // end of file
         }
 
         private char peekChar() {
@@ -430,36 +418,23 @@ class UglySoup {
 
             
             if (inTag) {
-                
-                if (startsWith("/>")) {
-                    pos += 2;
-                    inTag = false;
-                    return new Token(TokenKind.TAG_SELF_CLOSE, "/>");
-                }
-                if (c == '>') {
-                    pos++;
-                    inTag = false;
-                    return new Token(TokenKind.TAG_END, ">");
-                }
-
-                
                 if (Character.isWhitespace(c)) {
                     while (pos < len && Character.isWhitespace(peekChar())) pos++;
                     
                     if (pos >= len) return new Token(TokenKind.EOF, "");
                     c = peekChar();
                     
-                    if (startsWith("/>")) {
-                        pos += 2;
-                        inTag = false;
-                        return new Token(TokenKind.TAG_SELF_CLOSE, "/>");
-                    }
-                    
-                    if (c == '>') {
-                        pos++;
-                        inTag = false;
-                        return new Token(TokenKind.TAG_END, ">");
-                    }
+                }
+                if (startsWith("/>")) {
+                    pos += 2;
+                    inTag = false;
+                    return new Token(TokenKind.TAG_SELF_CLOSE, "/>");
+                }
+
+                if (c == '>') {
+                    pos++;
+                    inTag = false;
+                    return new Token(TokenKind.TAG_END, ">");
                 }
 
                 if (c == '=') {
@@ -646,11 +621,7 @@ class UglySoup {
                         if (tokenizer.peekToken().type == Tokenizer.TokenKind.TAG_END) tokenizer.nextToken();
 
                         if (closeName.equalsIgnoreCase(el.tagName)) {
-                            
                             return el;
-                        } else {
-                            
-                            break;
                         }
                     }
                     case TAG_OPEN_START -> {
