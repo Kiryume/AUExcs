@@ -30,4 +30,5 @@ bin/
 .idea
 
 *.zip
-src/week9/index.html
+*.html
+.sccignore
