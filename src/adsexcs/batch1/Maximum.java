@@ -1,4 +1,4 @@
-package adsexcs;
+package adsexcs.batch1;
 // Version: 20200917
 // Handin done by:
 //   202507620 Kirsten Pleskot
@@ -8,7 +8,6 @@ package adsexcs;
 //   All members contributed equally to all tasks
 
 
-import java.io.*;
 import java.util.*;
 public class Maximum {
     public int computeMaximum(ArrayList<Integer> input) {
