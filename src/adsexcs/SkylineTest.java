@@ -45,11 +45,91 @@ class Building {
 
 class Skyline{
     public static ArrayList<Integer> skyline(ArrayList<Building> buildings) {
-        // Insert here your code for computing the skyline for a list of buildings.
-
-        // The following code is just a placeholder to allow the code to compile.
-        ArrayList<Integer> skyline = new ArrayList<Integer>();
+        var skyline = skyline_recursive(buildings);
+        if (!skyline.isEmpty() && skyline.getLast() == 0) {
+            skyline.removeLast();
+        }
         return skyline;
+    }
+
+    private static ArrayList<Integer> skyline_recursive(List<Building> buildings) {
+        if (buildings.size() == 1) {
+            ArrayList<Integer> skyline = new ArrayList<Integer>();
+            Building b = buildings.get(0);
+            skyline.add(b.left);
+            skyline.add(b.height);
+            skyline.add(b.right);
+            skyline.add(0);
+            return skyline;
+        } else if (buildings.size() == 0) {
+            return new ArrayList<Integer>();
+        }
+        int mid = buildings.size() / 2;
+        ArrayList<Integer> leftSkyline = skyline_recursive(buildings.subList(0, mid));
+        ArrayList<Integer> rightSkyline = skyline_recursive(buildings.subList(mid, buildings.size()));
+        ArrayList<Integer> skyline = mergeSkylines(leftSkyline, rightSkyline);
+        return skyline;
+    }
+
+    private static ArrayList<Integer> mergeSkylines(ArrayList<Integer> leftSkyline, ArrayList<Integer> rightSkyline) {
+        ArrayList<Integer> mergedSkyline = new ArrayList<Integer>();
+        int h1 = 0, h2 = 0;
+        int i = 0, j = 0;
+        while (i < leftSkyline.size() && j < rightSkyline.size()) {
+            int x1 = leftSkyline.get(i);
+            int x2 = rightSkyline.get(j);
+            if (x1 < x2) {
+                // bump h1 to the next height
+                h1 = leftSkyline.get(i + 1);
+                // max height between current h1 and h2
+                int maxH = Math.max(h1, h2);
+                // if maxH is different from last height in mergedSkyline, add (x1, maxH)
+                if (mergedSkyline.isEmpty() || mergedSkyline.get(mergedSkyline.size() - 1) != maxH) {
+                    mergedSkyline.add(x1);
+                    mergedSkyline.add(maxH);
+                }
+                // move to next point in leftSkyline
+                i += 2;
+            } else if (x1 > x2) {
+                // bump h2 to the next height
+                h2 = rightSkyline.get(j + 1);
+                // max height between current h1 and h2
+                int maxH = Math.max(h1, h2);
+                // if maxH is different from last height in mergedSkyline, add (x2, maxH)
+                if (mergedSkyline.isEmpty() || mergedSkyline.get(mergedSkyline.size() - 1) != maxH) {
+                    mergedSkyline.add(x2);
+                    mergedSkyline.add(maxH);
+                }
+                // move to next point in rightSkyline
+                j += 2;
+            } else {
+                // if x1 == x2, bump both h1 and h2
+                h1 = leftSkyline.get(i + 1);
+                h2 = rightSkyline.get(j + 1);
+                // compute max height
+                int maxH = Math.max(h1, h2);
+                // if maxH is different from last height in mergedSkyline, add (x1, maxH)
+                if (mergedSkyline.isEmpty() || mergedSkyline.get(mergedSkyline.size() - 1) != maxH) {
+                    mergedSkyline.add(x1);
+                    mergedSkyline.add(maxH);
+                }
+                // move to next point in both skylines
+                i += 2;
+                j += 2;
+            }
+        }
+        // drain remaining points from skylines
+        while (i < leftSkyline.size()) {
+            mergedSkyline.add(leftSkyline.get(i));
+            mergedSkyline.add(leftSkyline.get(i + 1));
+            i += 2;
+        }
+        while (j < rightSkyline.size()) {
+            mergedSkyline.add(rightSkyline.get(j));
+            mergedSkyline.add(rightSkyline.get(j + 1));
+            j += 2;
+        }
+        return mergedSkyline;
     }
 }
 
