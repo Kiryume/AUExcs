@@ -43,7 +43,7 @@ class Building {
 }
 
 
-class Skyline{
+class Skyline {
     public static ArrayList<Integer> skyline(ArrayList<Building> buildings) {
         var skyline = skyline_aux(buildings);
         if (!skyline.isEmpty() && skyline.getLast() == 0) {
@@ -139,7 +139,7 @@ class SkylineTest {
         /* Wrapper that creates a copy of buildings before calling skyline. */
 
         ArrayList<Building> buildings_copy = new ArrayList<Building>();
-        for (Building building: buildings)
+        for (Building building : buildings)
             buildings_copy.add(new Building(building.left, building.height, building.right));
 
         return Skyline.skyline(buildings_copy);
@@ -148,7 +148,7 @@ class SkylineTest {
     public static void check(boolean condition) {
         /* Throw an AssertionError exception if condition is false. */
 
-        if (! condition) {
+        if (!condition) {
             throw new AssertionError();
         }
     }
@@ -168,11 +168,11 @@ class SkylineTest {
         if (n > 0) {
             check(skyline.get(1) > 0);  // First height is positive
             check(skyline.get(n - 2) > 0);  // Last height is positive
-            for (int i=1; i < n; i += 2) {
+            for (int i = 1; i < n; i += 2) {
                 check(skyline.get(i) >= 0);  // All heights are non-negative
-                check(skyline.get(i - 1 ) < skyline.get(i + 1));  // x coordinates are strictly increasing
+                check(skyline.get(i - 1) < skyline.get(i + 1));  // x coordinates are strictly increasing
             }
-            for (int i=1; i + 2 < n; i += 2) {
+            for (int i = 1; i + 2 < n; i += 2) {
                 check(skyline.get(i) != skyline.get(i + 2));  // Adjacent heights are different
             }
         }
@@ -228,7 +228,7 @@ class SkylineTest {
 
         ArrayList<Building> buildings = new ArrayList<Building>();
 
-        for (int i = 0; i < n; i ++) {
+        for (int i = 0; i < n; i++) {
             int left = (int) (Math.random() * 100);
             int right = left + 1 + (int) (Math.random() * 20);
             int height = 1 + (int) (Math.random() * 100);
@@ -243,10 +243,10 @@ class SkylineTest {
            where the error persists to exist.
         */
 
-        for (int i = 0; i < buildings.size(); i ++) {
+        for (int i = 0; i < buildings.size(); i++) {
             ArrayList<Building> simplified = new ArrayList<Building>(buildings);
             simplified.remove(i);
-            if (! correct_heights(simplified, safe_skyline(simplified)))
+            if (!correct_heights(simplified, safe_skyline(simplified)))
                 return simplify_bad_input(simplified);
         }
 
@@ -258,7 +258,7 @@ class SkylineTest {
            random buildings. On failure, print the buildings and the skyline.
          */
         System.out.print(number_of_buildings + " buildings");
-        for (int i = 0; i < iterations; i ++) {
+        for (int i = 0; i < iterations; i++) {
             System.out.print(".");
             ArrayList<Building> buildings = random_buildings(number_of_buildings);
             ArrayList<Integer> skyline = null;
@@ -273,7 +273,7 @@ class SkylineTest {
                 System.out.println("Skyline: " + skyline);
                 throw e;
             }
-            if (! correct_heights(buildings, skyline)) {
+            if (!correct_heights(buildings, skyline)) {
                 System.out.println();
                 System.out.println("Incorrect skyline:");
                 System.out.println("Buildings: " + buildings);
@@ -291,7 +291,7 @@ class SkylineTest {
     public static void main(String[] args) {
         /* Test the skyline method on an increasing number of buildings. */
 
-        for (int buildings = 0; buildings <= 10; buildings ++)
+        for (int buildings = 0; buildings <= 10; buildings++)
             random_skyline_tests(buildings, 100);
         for (int buildings = 100, iterations = 10000; iterations > 0; buildings *= 10, iterations /= 10)
             random_skyline_tests(buildings, iterations);
