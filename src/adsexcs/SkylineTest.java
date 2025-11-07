@@ -45,14 +45,14 @@ class Building {
 
 class Skyline{
     public static ArrayList<Integer> skyline(ArrayList<Building> buildings) {
-        var skyline = skyline_recursive(buildings);
+        var skyline = skyline_aux(buildings);
         if (!skyline.isEmpty() && skyline.getLast() == 0) {
             skyline.removeLast();
         }
         return skyline;
     }
 
-    private static ArrayList<Integer> skyline_recursive(List<Building> buildings) {
+    private static ArrayList<Integer> skyline_aux(List<Building> buildings) {
         if (buildings.size() == 1) {
             ArrayList<Integer> skyline = new ArrayList<Integer>();
             Building b = buildings.get(0);
@@ -65,8 +65,8 @@ class Skyline{
             return new ArrayList<Integer>();
         }
         int mid = buildings.size() / 2;
-        ArrayList<Integer> leftSkyline = skyline_recursive(buildings.subList(0, mid));
-        ArrayList<Integer> rightSkyline = skyline_recursive(buildings.subList(mid, buildings.size()));
+        ArrayList<Integer> leftSkyline = skyline_aux(buildings.subList(0, mid));
+        ArrayList<Integer> rightSkyline = skyline_aux(buildings.subList(mid, buildings.size()));
         ArrayList<Integer> skyline = mergeSkylines(leftSkyline, rightSkyline);
         return skyline;
     }
