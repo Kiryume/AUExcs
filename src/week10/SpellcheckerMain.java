@@ -1,4 +1,5 @@
 package week10;
+// name: Kirsten Pleskot
 
 
 public class SpellcheckerMain {
@@ -31,7 +32,7 @@ class CzechSpellchecker implements Spellchecker {
     @Override
     public boolean isWord(String word) {
         word = word.toLowerCase();
-        return word.equals("ahoj") || word.equals("svet") || word.equals("káva");
+        return word.equals("ahoj") || word.equals("svět") || word.equals("káva");
     }
 }
 

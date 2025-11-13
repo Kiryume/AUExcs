@@ -1,4 +1,8 @@
 package week10;
+// name: Kirsten Pleskot
+
+
+import java.util.Arrays;
 
 public class Cars {
     public static void main(String[] args) {
@@ -12,6 +16,10 @@ public class Cars {
         System.out.println("Hybrid Car Range: " + hybridCar.getRemainingRange() + " km");
         hybridCar.drive(300);
         System.out.println("Hybrid Car Range after driving 300 km: " + hybridCar.getRemainingRange() + " km");
+        Integer a = 300;
+        Integer b = 300;
+        System.out.println(a == b);
+
     }
 
 }

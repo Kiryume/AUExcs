@@ -1,4 +1,5 @@
 package week10;
+// name: Kirsten Pleskot
 
 public class Person {
     private final String name;
