@@ -4,6 +4,9 @@ package week13;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 
+// This is probably the worst code I've ever written
+// The core functions of this printer are the If, While, Break, and Return functions which allow to have control flow without using any built in control flow mechanism
+// (The program contains 0 if, for or while statements)
 public class PrinterFromHell {
     Random r;
     int paperLevel;
@@ -31,7 +34,202 @@ public class PrinterFromHell {
         Return(this);
     }
 
-    class Owner {
+    void BreakagesContain(Breakage b) throws ReturnException {
+        final Integer[] i = {0};
+        While(() -> i[0] < breakages.size(), () -> {
+            try {
+                boolean equals = false;
+                try {
+                    breakages.get(i[0]).Equals(b);
+                } catch (ReturnException e) {
+                    equals = (boolean) e.value;
+                }
+                If(equals);
+            } catch (ArithmeticException e) {
+                Return(true);
+            }
+            i[0]++;
+        });
+        Return(false);
+    }
+
+    void addBreakage(Breakage b) {
+        try {
+            boolean contains = false;
+            try {
+                BreakagesContain(b);
+            } catch (ReturnException e) {
+                contains = (boolean) e.value;
+            }
+            If(!contains);
+        } catch (ArithmeticException e) {
+            breakages.add(b);
+        }
+    }
+
+    void breakPrinter() throws OutOfPaperException, PaperJamException, OutOfTonerException {
+        int issue = r.nextInt(3);
+        var breakage = switch (issue) {
+            case 0 -> breakIssue.PAPER_JAM;
+            case 1 -> {
+                paperLevel = 0;
+                yield breakIssue.OUT_OF_PAPER;
+            }
+            case 2 -> {
+                Color colorToDeplete = Color.values()[r.nextInt(Color.values().length)];
+                tonerLevels.put(colorToDeplete, 0);
+                yield breakIssue.OUT_OF_TONER;
+            }
+            default -> throw new IllegalStateException("Unexpected value: " + issue);
+        };
+        Breakage b = null;
+        try {
+            breakageFactory.createBreakage(breakage);
+        } catch (ReturnException e) {
+            b = (Breakage) e.value;
+        }
+        addBreakage(b);
+        assert b != null;
+        try {
+            If(breakage == breakIssue.OUT_OF_PAPER);
+        } catch (ArithmeticException e) {
+            throw new OutOfPaperException(b.message);
+        }
+        try {
+            If(breakage == breakIssue.PAPER_JAM);
+        } catch (ArithmeticException e) {
+            throw new PaperJamException(b.message);
+        }
+        try {
+            If(breakage == breakIssue.OUT_OF_TONER);
+        } catch (ArithmeticException e) {
+            throw new OutOfTonerException(b.message);
+        }
+    }
+
+    void getCurrentBreakagesMessages() throws ReturnException {
+        var o = breakages.stream().map(b -> b.fixMessage).toArray(String[]::new);
+        Return(o);
+    }
+
+    public void fixBreakage(int index) throws Exception {
+        try {
+            If(index < 0 || index >= breakages.size());
+        } catch (ArithmeticException e) {
+            throw new IndexOutOfBoundsException("No breakage at index " + index);
+        }
+        try {
+            If(r.nextBoolean());
+        } catch (ArithmeticException e) {
+            breakPrinter();
+        }
+        Breakage b = breakages.get(index);
+        b.fix();
+        breakages.remove(index);
+    }
+
+    public void printDocument(String document) throws NotEnoughPaperException, PaperJamException, OutOfTonerException, PrinterNotFixedException {
+        try {
+            If(r.nextBoolean() || breakages.isEmpty());
+        } catch (ArithmeticException e) {
+            breakPrinter();
+        }
+        try {
+            If(!breakages.isEmpty());
+        } catch (ArithmeticException e) {
+            throw new PrinterNotFixedException("Printer has unresolved breakages!");
+        }
+        try {
+            If(paperLevel >= document.lines().toArray().length);
+        } catch (ArithmeticException e) {
+            throw new NotEnoughPaperException("Not enough paper to print the document!");
+        }
+
+        System.out.println("Printing document:\n" + document);
+        paperLevel -= document.lines().toArray().length;
+    }
+
+    public static void main(String[] args) {
+        PrinterFromHell printer;
+        try {
+            printer = new PrinterFromHell();
+        } catch (ReturnException e) {
+            printer = (PrinterFromHell) e.value;
+        }
+        System.out.println("Enter the document to print (end with an empty line):");
+        StringBuilder documentBuilder = new StringBuilder();
+        Scanner scanner = new Scanner(System.in);
+        While(() -> true, () -> {
+            String l = scanner.nextLine();
+            try {
+                If(l.isEmpty());
+            } catch (ArithmeticException e) {
+                Break();
+            }
+            documentBuilder.append(l).append("\n");
+        });
+
+        String document = documentBuilder.toString();
+        PrinterFromHell finalPrinter = printer;
+        While(() -> true, () -> {
+            try {
+                finalPrinter.printDocument(document);
+                Break();
+            } catch (NotEnoughPaperException | PaperJamException | OutOfTonerException | PrinterNotFixedException e) {
+                System.out.println("Issue Happened While Printing: " + e.getMessage());
+                System.out.println("Please fix the following issues:");
+                String[] issues = new String[0];
+                try {
+                    finalPrinter.getCurrentBreakagesMessages();
+                } catch (ReturnException re) {
+                    issues = (String[]) re.value;
+                }
+                final Integer[] i = {0};
+                String[] finalIssues = issues;
+                While(() -> i[0] < finalIssues.length, () -> {
+                    System.out.println(i[0] + ": " + finalIssues[i[0]]);
+                    i[0]++;
+                });
+                System.out.println("Enter the index of the issue you want to fix:");
+                try {
+                    int index = scanner.nextInt();
+                    finalPrinter.fixBreakage(index);
+                } catch (IndexOutOfBoundsException ex) {
+                    System.out.println(ex.getMessage());
+                } catch (Exception ex) {
+                    System.out.println("While fixing the issue, another problem occurred: " + ex.getMessage());
+                }
+
+            }
+        });
+    }
+
+    public static <T> void Return(T value) throws ReturnException {
+        throw new ReturnException(value);
+    }
+
+    public static void If(boolean condition) {
+        int i = 1 / (4 - String.valueOf(condition).length());
+    }
+
+    public static void While(BooleanSupplier condition, Runnable body) {
+        try {
+            If(condition.getAsBoolean());
+        } catch (ArithmeticException e) {
+            try {
+                body.run();
+                While(condition, body);
+
+            } catch (BreakException ignored) {
+            }
+        }
+    }
+
+    public static void Break() {
+        throw new BreakException();
+    }
+
+    static class Owner {
         int money;
         EmploymentStatus employmentStatus;
 
@@ -239,208 +437,7 @@ public class PrinterFromHell {
             Return(o);
         }
     }
-    
-    void BreakagesContain(Breakage b) throws ReturnException {
-        final Integer[] i = {0};
-        While(() -> i[0] < breakages.size(), () -> {
-            try {
-                boolean equals = false;
-                try {
-                    breakages.get(i[0]).Equals(b);
-                } catch (ReturnException e) {
-                    equals = (boolean) e.value;
-                }
-                If(equals);
-            } catch (ArithmeticException e) {
-                Return(true);
-            }
-            i[0]++;
-        });
-        Return(false);
-    }
 
-    void addBreakage(Breakage b) {
-        try {
-            boolean contains = false;
-            try {
-                BreakagesContain(b);
-            } catch (ReturnException e) {
-                contains = (boolean) e.value;
-            }
-            If(!contains);
-        } catch (ArithmeticException e) {
-            breakages.add(b);
-        }
-    }
-
-    void breakPrinter() throws OutOfPaperException, PaperJamException, OutOfTonerException {
-        int issue = r.nextInt(3);
-        var breakage = switch (issue) {
-            case 0 -> breakIssue.PAPER_JAM;
-            case 1 -> {
-                paperLevel = 0;
-                yield breakIssue.OUT_OF_PAPER;
-            }
-            case 2 -> {
-                Color colorToDeplete = Color.values()[r.nextInt(Color.values().length)];
-                tonerLevels.put(colorToDeplete, 0);
-                yield breakIssue.OUT_OF_TONER;
-            }
-            default -> throw new IllegalStateException("Unexpected value: " + issue);
-        };
-        Breakage b = null;
-        try {
-            breakageFactory.createBreakage(breakage);
-        } catch (ReturnException e) {
-            b = (Breakage) e.value;
-        }
-        addBreakage(b);
-        assert b != null;
-        try {
-            If(breakage == breakIssue.OUT_OF_PAPER);
-        } catch (ArithmeticException e) {
-            throw new OutOfPaperException(b.message);
-        }
-        try {
-            If(breakage == breakIssue.PAPER_JAM);
-        } catch (ArithmeticException e) {
-            throw new PaperJamException(b.message);
-        }
-        try {
-            If(breakage == breakIssue.OUT_OF_TONER);
-        } catch (ArithmeticException e) {
-            throw new OutOfTonerException(b.message);
-        }
-    }
-
-    void getCurrentBreakagesMessages() throws ReturnException {
-        var o = breakages.stream().map(b -> b.fixMessage).toArray(String[]::new);
-        Return(o);
-    }
-
-    public <T> void Return(T value) throws ReturnException {
-        throw new ReturnException(value);
-    }
-
-    public static void If(boolean condition) {
-        int i = 1 / (4 - String.valueOf(condition).length());
-    }
-
-    public static void While(BooleanSupplier condition, Runnable body) {
-        try {
-            If(condition.getAsBoolean());
-        } catch (ArithmeticException e) {
-            try {
-                body.run();
-                While(condition, body);
-
-            } catch (BreakException ignored) {
-            }
-        }
-    }
-
-    public static void Break() {
-        throw new BreakException();
-    }
-
-    public void fixBreakage(int index) throws Exception {
-        try {
-            If(index < 0 || index >= breakages.size());
-        } catch (ArithmeticException e) {
-            throw new IndexOutOfBoundsException("No breakage at index " + index);
-        }
-        try {
-            If(r.nextBoolean());
-        } catch (ArithmeticException e) {
-            breakPrinter();
-        }
-        Breakage b = breakages.get(index);
-        b.fix();
-        breakages.remove(index);
-    }
-
-    public void printDocument(String document) throws NotEnoughPaperException, PaperJamException, OutOfTonerException, PrinterNotFixedException {
-        try {
-            If(r.nextBoolean() || breakages.isEmpty());
-        } catch (ArithmeticException e) {
-            breakPrinter();
-        }
-        try {
-            If(!breakages.isEmpty());
-        } catch (ArithmeticException e) {
-            throw new PrinterNotFixedException("Printer has unresolved breakages!");
-        }
-        try {
-            If(paperLevel >= document.lines().toArray().length);
-        } catch (ArithmeticException e) {
-            throw new NotEnoughPaperException("Not enough paper to print the document!");
-        }
-
-        System.out.println("Printing document:\n" + document);
-        paperLevel -= document.lines().toArray().length;
-    }
-
-    public static void main(String[] args) {
-        PrinterFromHell printer = null;
-        try {
-            printer = new PrinterFromHell();
-        } catch (ReturnException e) {
-            printer = (PrinterFromHell) e.value;
-        }
-        System.out.println("Enter the document to print (end with an empty line):");
-        StringBuilder documentBuilder = new StringBuilder();
-        Scanner scanner = new Scanner(System.in);
-        While(
-                () -> true,
-                () -> {
-                    String l = scanner.nextLine();
-                    try {
-                        If(l.isEmpty());
-                    } catch (ArithmeticException e) {
-                        Break();
-                    }
-                    documentBuilder.append(l).append("\n");
-                }
-        );
-
-        String document = documentBuilder.toString();
-        PrinterFromHell finalPrinter = printer;
-        While(
-                () -> true,
-                () -> {
-                    try {
-                        finalPrinter.printDocument(document);
-                        Break();
-                    } catch (NotEnoughPaperException | PaperJamException | OutOfTonerException | PrinterNotFixedException e) {
-                        System.out.println("Issue Happened While Printing: " + e.getMessage());
-                        System.out.println("Please fix the following issues:");
-                        String[] issues = new String[0];
-                        try {
-                            finalPrinter.getCurrentBreakagesMessages();
-                        } catch (ReturnException re) {
-                            issues = (String[]) re.value;
-                        }
-                        final Integer[] i = {0};
-                        String[] finalIssues = issues;
-                        While(() -> i[0] < finalIssues.length, () -> {
-                            System.out.println(i[0] + ": " + finalIssues[i[0]]);
-                            i[0]++;
-                        });
-                        System.out.println("Enter the index of the issue you want to fix:");
-                        try {
-                            int index = scanner.nextInt();
-                            finalPrinter.fixBreakage(index);
-                        } catch (IndexOutOfBoundsException ex) {
-                            System.out.println(ex.getMessage());
-                        } catch (Exception ex) {
-                            System.out.println("While fixing the issue, another problem occurred: " + ex.getMessage());
-                        }
-
-                    }
-                }
-        );
-
-    }
     public static class ReturnException extends RuntimeException {
         public final Object value;
 
@@ -449,7 +446,8 @@ public class PrinterFromHell {
         }
     }
 
-    public static class BreakException extends RuntimeException {}
+    public static class BreakException extends RuntimeException {
+    }
 
     public static class CardDeclinedException extends Exception {
         public CardDeclinedException(String message) {
