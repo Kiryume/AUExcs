@@ -6,7 +6,7 @@ import java.util.function.BooleanSupplier;
 
 // This is probably the worst code I've ever written
 // The core functions of this printer are the If, While, Break, and Return functions which allow to have control flow without using any built in control flow mechanism
-// (The program contains 0 if, for or while statements)
+// (The program contains 0 if, for, switch or while statements)
 public class PrinterFromHell {
     Random r;
     int paperLevel;
@@ -69,19 +69,25 @@ public class PrinterFromHell {
 
     void breakPrinter() throws OutOfPaperException, PaperJamException, OutOfTonerException {
         int issue = r.nextInt(3);
-        var breakage = switch (issue) {
-            case 0 -> breakIssue.PAPER_JAM;
-            case 1 -> {
-                paperLevel = 0;
-                yield breakIssue.OUT_OF_PAPER;
-            }
-            case 2 -> {
-                Color colorToDeplete = Color.values()[r.nextInt(Color.values().length)];
-                tonerLevels.put(colorToDeplete, 0);
-                yield breakIssue.OUT_OF_TONER;
-            }
-            default -> throw new IllegalStateException("Unexpected value: " + issue);
-        };
+        breakIssue breakage = null;
+        try {
+            If(issue == 0);
+        } catch (ArithmeticException e) {
+            breakage = breakIssue.PAPER_JAM;
+        }
+        try {
+            If(issue == 1);
+        } catch (ArithmeticException e) {
+            paperLevel = 0;
+            breakage = breakIssue.OUT_OF_PAPER;
+        }
+        try {
+            If(issue == 2);
+        } catch (ArithmeticException e) {
+            Color colorToDeplete = Color.values()[r.nextInt(Color.values().length)];
+            tonerLevels.put(colorToDeplete, 0);
+            breakage = breakIssue.OUT_OF_TONER;
+        }
         Breakage b = null;
         try {
             breakageFactory.createBreakage(breakage);
@@ -426,14 +432,23 @@ public class PrinterFromHell {
 
     class BreakageFactory {
         void createBreakage(breakIssue issue) throws ReturnException {
-            var o = switch (issue) {
-                case OUT_OF_PAPER -> new OutOfPaperBreakage("Out of paper!", "Refill paper tray.");
-                case PAPER_JAM -> new PaperJamBreakage("Paper jam!", "Clear the paper jam.");
-                case OUT_OF_TONER -> {
-                    Color color = Color.values()[r.nextInt(Color.values().length)];
-                    yield new OutOfTonerBreakage(color, "Subscription for " + color + " has expired!", "Buy subscription for " + color);
-                }
-            };
+            Object o = null;
+            try {
+                If(issue == breakIssue.OUT_OF_PAPER);
+            } catch (ArithmeticException e) {
+                o = new OutOfPaperBreakage("Out of paper!", "Refill paper tray.");
+            }
+            try {
+                If(issue == breakIssue.PAPER_JAM);
+            } catch (ArithmeticException e) {
+                o = new PaperJamBreakage("Paper jam!", "Clear the paper jam.");
+            }
+            try {
+                If(issue == breakIssue.OUT_OF_TONER);
+            } catch (ArithmeticException e) {
+                Color color = Color.values()[r.nextInt(Color.values().length)];
+                o = new OutOfTonerBreakage(color, "Subscription for " + color + " has expired!", "Buy subscription for " + color);
+            }
             Return(o);
         }
     }
