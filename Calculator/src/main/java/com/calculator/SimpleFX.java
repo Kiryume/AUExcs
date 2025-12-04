@@ -51,7 +51,7 @@ public class SimpleFX extends Application {
                 parenthesisBalance++;
             }
         } else if (token.type == TokenKind.NUMBER) {
-          if (!expression.isEmpty()) {
+            if (!expression.isEmpty()) {
                 Token last = ((LinkedList<Token>) expression).getLast();
                 if (last.type == TokenKind.RPAREN) {
                     expression.add(new Token(TokenKind.MULTIPLY, ""));
@@ -136,12 +136,11 @@ public class SimpleFX extends Application {
             Token t = expr.poll();
             switch (t.type) {
                 case NUMBER -> rpn.add(new Token(TokenKind.NUMBER, eatNumber(t.value, expr)));
-                case PLUS, MINUS, MULTIPLY, DIVIDE -> {
+                case PLUS, MINUS, MULTIPLY, DIVIDE, RAISE -> {
                     while (!operators.isEmpty()
                         && operators.peek().type != TokenKind.LPAREN
                         && (precedence.get(operators.peek().type) > precedence.get(t.type)
-                            || ((precedence.get(operators.peek().type).equals(precedence.get(t.type)) && t.type != TokenKind.RAISE))))
-                    {
+                        || ((precedence.get(operators.peek().type).equals(precedence.get(t.type)) && t.type != TokenKind.RAISE)))) {
                         rpn.add(operators.pop());
                     }
                     operators.push(t);
@@ -170,14 +169,10 @@ public class SimpleFX extends Application {
                     evalStack.push(a + b);
                 }
                 case MINUS -> {
-                    if (evalStack.size() == 1) {
-                        double a = evalStack.pop();
-                        evalStack.push(-a);
-                    } else {
-                        double b = evalStack.pop();
-                        double a = evalStack.pop();
-                        evalStack.push(a - b);
-                    }
+                    double b = evalStack.pop();
+                    double a = evalStack.pop();
+                    evalStack.push(a - b);
+
                 }
                 case MULTIPLY -> {
                     double b = evalStack.pop();
@@ -188,6 +183,11 @@ public class SimpleFX extends Application {
                     double b = evalStack.pop();
                     double a = evalStack.pop();
                     evalStack.push(a / b);
+                }
+                case RAISE -> {
+                    double b = evalStack.pop();
+                    double a = evalStack.pop();
+                    evalStack.push(Math.pow(a, b));
                 }
             }
         }
