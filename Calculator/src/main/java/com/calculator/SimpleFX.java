@@ -10,10 +10,12 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.*;
 
 // Implementation is based on https://en.wikipedia.org/wiki/Shunting_yard_algorithm
+// extended to support unary minus
+// it supports fun features like 2(-5) = -10, 1-(4^.5* = 1-(4^0.5)) and so on
+// Features are mostly inspired by the default calculator on Pixels
 public class SimpleFX extends Application {
     Queue<Token> expression = new LinkedList<>();
     int parenthesisBalance = 0;
@@ -79,6 +81,9 @@ public class SimpleFX extends Application {
                         // In case the previous token is a closing parenthesis we add a multiplication sign before
                         // This allows for the following syntax: (3+4)2, (5)5+2 and so on
                         expression.add(new Token(TokenKind.MULTIPLY, ""));
+                    } else if (expression.size() == 1 && last.type == TokenKind.NUMBER && last.value == 0) {
+                        // If the only token in the expression is 0 we replace it with the new number
+                        ((LinkedList<Token>) expression).removeLast();
                     } else if (last.type == TokenKind.NUMBER) {
                         // If the previous token is a number we inherit whether it's decimal or not
                         token.decimal = last.decimal;
@@ -191,9 +196,13 @@ public class SimpleFX extends Application {
             }
             // Convert the result to tokens and add them to the expression
             var string = result.toPlainString();
+            // Remove trailing zeros after decimal point
+            if (string.contains(".")) {
+                string = string.replaceAll("0+$", "");
+            }
             // If the result is an integer we remove the decimal part
-            if (string.endsWith(".0")) {
-                string = string.substring(0, string.length() - 2);
+            if (string.endsWith(".")) {
+                string = string.substring(0, string.length() - 1);
             }
             // Add all characters as tokens
             for (char ch : string.toCharArray()) {
@@ -353,7 +362,8 @@ public class SimpleFX extends Application {
                 case DIVIDE -> {
                     BigDecimal b = evalStack.pop();
                     BigDecimal a = evalStack.pop();
-                    evalStack.push(a.divide(b, RoundingMode.HALF_UP));
+                    double result = a.doubleValue() / b.doubleValue();
+                    evalStack.push(BigDecimal.valueOf(result));
                 }
                 case RAISE -> {
                     BigDecimal a = evalStack.pop();
@@ -430,6 +440,7 @@ public class SimpleFX extends Application {
         GridPane grid = new GridPane();
         grid.setHgap(5);
         grid.setVgap(5);
+        grid.setPadding(new javafx.geometry.Insets(10));
         grid.setAlignment(Pos.CENTER);
 
 
@@ -444,7 +455,7 @@ public class SimpleFX extends Application {
         root.getChildren().addAll(display, intermediatemDisplay, grid);
 
 
-        Scene scene = new Scene(root, 300, 250);
+        Scene scene = new Scene(root);
 
         stage.setTitle("Calculator");
         stage.setScene(scene);
