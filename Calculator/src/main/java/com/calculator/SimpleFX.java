@@ -9,6 +9,8 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
 // Implementation is based on https://en.wikipedia.org/wiki/Shunting_yard_algorithm
@@ -162,6 +164,50 @@ public class SimpleFX extends Application {
         System.out.println("Cleared expression");
     }
 
+    private void evaluateExpression() {
+        if (!expression.isEmpty()) {
+            // Calculate the expression
+            BigDecimal result = null;
+            try {
+                result = shuntingYard();
+            } catch (Exception e) {
+                // Handle results
+                display.setText("Error");
+                System.out.println("Calculation error: " + e.getMessage());
+                return;
+            } finally {
+                // Always clear the expression after calculation
+                expression.clear();
+            }
+            if (result == null) {
+                display.setText("Error");
+                System.out.println("Calculation error: " + result);
+                return;
+            }
+            // Add token minus to the expression if the result is negative and make the result positive
+            if (result.compareTo(BigDecimal.ZERO) < 0) {
+                expression.add(new Token(TokenKind.MINUS, "-"));
+                result = result.negate();
+            }
+            // Convert the result to tokens and add them to the expression
+            var string = result.toPlainString();
+            // If the result is an integer we remove the decimal part
+            if (string.endsWith(".0")) {
+                string = string.substring(0, string.length() - 2);
+            }
+            // Add all characters as tokens
+            for (char ch : string.toCharArray()) {
+                if (ch == '.') {
+                    addToken(new Token(TokenKind.DECIMAL, "."));
+                } else {
+                    addToken(new Token(TokenKind.NUMBER, Character.getNumericValue(ch)));
+                }
+            }
+            updateDisplay();
+            System.out.println("Calculated result: " + result);
+        }
+    }
+
     private void updateDisplay() {
         StringBuilder text = new StringBuilder();
         for (Token t : expression) {
@@ -170,40 +216,37 @@ public class SimpleFX extends Application {
         display.setText(text.toString());
         try {
             // Try evaluating the expression for intermediate display of a result
-            double result = shuntingYard();
-            intermediatemDisplay.setText(Double.toString(result));
+            BigDecimal result = shuntingYard();
+            intermediatemDisplay.setText(result.toString());
         } catch (Exception e) {
             intermediatemDisplay.setText("");
         }
     }
 
     // This is a helper function to read string of tokens to a single number for calculations
-    private double eatNumber(int init, Queue<Token> expr) {
-        double number = init;
-        boolean decimalFound = false;
-        double decimalPlace = 10;
+    private BigDecimal eatNumber(int init, Queue<Token> expr) {
+        // Treat the number as string for as long as possible to avoid issues with very small numbers
+        // without this 0.2^17 would evaluate to error after being converted to tokens and then to number again
+        StringBuilder numberStr = new StringBuilder();
+        numberStr.append(init);
         while (!expr.isEmpty()) {
             Token t = expr.peek();
             if (t.type == TokenKind.NUMBER) {
                 expr.poll();
-                if (!decimalFound) {
-                    number = number * 10 + t.value;
-                } else {
-                    number = number + t.value / decimalPlace;
-                    decimalPlace *= 10;
-                }
+                numberStr.append(t.value);
             } else if (t.type == TokenKind.DECIMAL) {
                 expr.poll();
-                decimalFound = true;
+                numberStr.append(".");
             } else {
                 break;
             }
         }
+        BigDecimal number = new BigDecimal(numberStr.toString());
         return number;
     }
 
     // This is what calculates the expression using RPN and the shunting yard algorithm
-    private double shuntingYard() {
+    private BigDecimal shuntingYard() {
         Queue<Token> rpn = new LinkedList<>();
         Stack<Token> operators = new Stack<>();
         Queue<Token> expr = new LinkedList<>(this.expression);
@@ -283,39 +326,40 @@ public class SimpleFX extends Application {
             rpn.add(operators.pop());
         }
         // Now we evaluate the RPN expression
-        Stack<Double> evalStack = new Stack<>();
+        Stack<BigDecimal> evalStack = new Stack<>();
         while (!rpn.isEmpty()) {
             Token t = rpn.poll();
             switch (t.type) {
                 case NUMBER -> evalStack.push(t.dvalue);
                 case PLUS -> {
-                    double b = evalStack.pop();
-                    double a = evalStack.pop();
-                    evalStack.push(a + b);
+                    BigDecimal b = evalStack.pop();
+                    BigDecimal a = evalStack.pop();
+                    evalStack.push(a.add(b));
                 }
                 case MINUS -> {
-                    double b = evalStack.pop();
-                    double a = evalStack.pop();
-                    evalStack.push(a - b);
+                    BigDecimal b = evalStack.pop();
+                    BigDecimal a = evalStack.pop();
+                    evalStack.push(a.subtract(b));
                 }
                 case NEGATE -> {
-                    double a = evalStack.pop();
-                    evalStack.push(-a);
+                    BigDecimal a = evalStack.pop();
+                    evalStack.push(a.negate());
                 }
                 case MULTIPLY -> {
-                    double b = evalStack.pop();
-                    double a = evalStack.pop();
-                    evalStack.push(a * b);
+                    BigDecimal b = evalStack.pop();
+                    BigDecimal a = evalStack.pop();
+                    evalStack.push(a.multiply(b));
                 }
                 case DIVIDE -> {
-                    double b = evalStack.pop();
-                    double a = evalStack.pop();
-                    evalStack.push(a / b);
+                    BigDecimal b = evalStack.pop();
+                    BigDecimal a = evalStack.pop();
+                    evalStack.push(a.divide(b, RoundingMode.HALF_UP));
                 }
                 case RAISE -> {
-                    double b = evalStack.pop();
-                    double a = evalStack.pop();
-                    evalStack.push(Math.pow(a, b));
+                    BigDecimal a = evalStack.pop();
+                    BigDecimal b = evalStack.pop();
+                    double result = Math.pow(b.doubleValue(), a.doubleValue());
+                    evalStack.push(BigDecimal.valueOf(result));
                 }
             }
         }
@@ -341,48 +385,7 @@ public class SimpleFX extends Application {
         });
         var equalsBtn = new StyledButton("=");
         equalsBtn.setOnAction(event -> {
-            if (!expression.isEmpty()) {
-                // Calculate the expression
-                double result = 0.0;
-                try {
-                    result = shuntingYard();
-                } catch (Exception e) {
-                    // Handle results
-                    display.setText("Error");
-                    System.out.println("Calculation error: " + e.getMessage());
-                    return;
-                } finally {
-                    // Always clear the expression after calculation
-                    expression.clear();
-                }
-                if (Double.isInfinite(result) || Double.isNaN(result)) {
-                    display.setText("Error");
-                    System.out.println("Calculation error: " + result);
-                    return;
-                }
-                // Add token minus to the expression if the result is negative and make the result positive
-                if (result < 0) {
-                    expression.add(new Token(TokenKind.MINUS, "-"));
-                    result = -result;
-                }
-                var string = Double.toString(result);
-                // Convert the result to tokens and add them to the expression
-                // var string = Double.toString(result);
-                // If the result is an integer we remove the decimal part
-                if (string.endsWith(".0")) {
-                    string = string.substring(0, string.length() - 2);
-                }
-                // Add all characters as tokens
-                for (char ch : string.toCharArray()) {
-                    if (ch == '.') {
-                        expression.add(new Token(TokenKind.DECIMAL, "."));
-                    } else {
-                        expression.add(new Token(TokenKind.NUMBER, Character.getNumericValue(ch)));
-                    }
-                }
-                updateDisplay();
-                System.out.println("Calculated result: " + result);
-            }
+            evaluateExpression();
         });
         var deleteBtn = new StyledButton("DEL");
         deleteBtn.setOnAction(event -> {
@@ -509,10 +512,10 @@ public class SimpleFX extends Application {
         // Sometimes it's empty for implicit tokens like hidden multiplication or hidden zero
         // e.g. in 2(3+4) or .5+1
         String text;
-        // This value is used for representing the number tokens before they are converted to double for calculations
+        // This value is used for representing the number tokens before they are converted to BigDecimal for calculations
         int value = 0;
         // This is only intended for calculations
-        double dvalue = 0.0;
+        BigDecimal dvalue = BigDecimal.ZERO;
         // This is for number tokens to indicate whether the number contains a decimal point
         boolean decimal = false;
 
@@ -529,10 +532,10 @@ public class SimpleFX extends Application {
             this.text = text;
         }
 
-        public Token(TokenKind type, double dvalue) {
+        public Token(TokenKind type, BigDecimal dvalue) {
             this.type = type;
             this.dvalue = dvalue;
-            this.text = Double.toString(dvalue);
+            this.text = dvalue.toPlainString();
         }
 
         Token(TokenKind type, String text) {
