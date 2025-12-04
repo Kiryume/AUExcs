@@ -16,50 +16,69 @@ public class SimpleFX extends Application {
     int parenthesisBalance = 0;
     TextField display = new TextField();
     TextField intermediatemDisplay = new TextField();
-    Map<TokenKind, Integer> precedence = Map.of(
+    final Map<TokenKind, Integer> precedence = Map.of(
         TokenKind.PLUS, 2,
         TokenKind.MINUS, 2,
         TokenKind.MULTIPLY, 3,
         TokenKind.DIVIDE, 3,
         TokenKind.RAISE, 4
     );
+    final List<TokenKind> operators = List.of(
+        TokenKind.PLUS,
+        TokenKind.MINUS,
+        TokenKind.MULTIPLY,
+        TokenKind.DIVIDE,
+        TokenKind.RAISE
+    );
 
     private void addToken(Token token) {
-        if (token.type == TokenKind.LPAREN) {
-            if (!expression.isEmpty()) {
-                Token last = ((LinkedList<Token>) expression).getLast();
-                if (parenthesisBalance == 0) {
-                    if (last.type == TokenKind.NUMBER || last.type == TokenKind.RPAREN) {
-                        expression.add(new Token(TokenKind.MULTIPLY, ""));
-                        expression.add(token);
-                        parenthesisBalance++;
+        switch (token.type) {
+            case TokenKind.LPAREN -> {
+                if (!expression.isEmpty()) {
+                    Token last = ((LinkedList<Token>) expression).getLast();
+                    if (parenthesisBalance == 0) {
+                        if (last.type == TokenKind.NUMBER || last.type == TokenKind.RPAREN) {
+                            expression.add(new Token(TokenKind.MULTIPLY, ""));
+                            expression.add(token);
+                            parenthesisBalance++;
+                        } else {
+                            expression.add(token);
+                            parenthesisBalance++;
+                        }
                     } else {
-                        expression.add(token);
-                        parenthesisBalance++;
+                        if (last.type == TokenKind.NUMBER || last.type == TokenKind.RPAREN) {
+                            expression.add(new Token(TokenKind.RPAREN, ")"));
+                            parenthesisBalance--;
+                        } else {
+                            expression.add(token);
+                            parenthesisBalance++;
+                        }
                     }
                 } else {
-                    if (last.type == TokenKind.NUMBER || last.type == TokenKind.RPAREN) {
-                        expression.add(new Token(TokenKind.RPAREN, ")"));
-                        parenthesisBalance--;
-                    } else {
-                        expression.add(token);
-                        parenthesisBalance++;
+                    expression.add(token);
+                    parenthesisBalance++;
+                }
+            }
+            case TokenKind.NUMBER -> {
+                if (!expression.isEmpty()) {
+                    Token last = ((LinkedList<Token>) expression).getLast();
+                    if (last.type == TokenKind.RPAREN) {
+                        expression.add(new Token(TokenKind.MULTIPLY, ""));
                     }
                 }
-            } else {
                 expression.add(token);
-                parenthesisBalance++;
             }
-        } else if (token.type == TokenKind.NUMBER) {
-            if (!expression.isEmpty()) {
-                Token last = ((LinkedList<Token>) expression).getLast();
-                if (last.type == TokenKind.RPAREN) {
-                    expression.add(new Token(TokenKind.MULTIPLY, ""));
+            case TokenKind.MULTIPLY, TokenKind.DIVIDE, TokenKind.PLUS, TokenKind.RAISE, TokenKind.MINUS -> {
+                if (!expression.isEmpty()) {
+                    Token last = ((LinkedList<Token>) expression).getLast();
+                    if (!operators.contains(last.type)) {
+                        expression.add(token);
+                    }
                 }
             }
-            expression.add(token);
-        } else {
-            expression.add(token);
+            default -> {
+                expression.add(token);
+            }
         }
         updateDisplay();
     }
@@ -132,11 +151,39 @@ public class SimpleFX extends Application {
         Queue<Token> rpn = new LinkedList<>();
         Stack<Token> operators = new Stack<>();
         Queue<Token> expr = new LinkedList<>(this.expression);
+
+        TokenKind lastType = null;
+
         while (!expr.isEmpty()) {
             Token t = expr.poll();
+
             switch (t.type) {
-                case NUMBER -> rpn.add(new Token(TokenKind.NUMBER, eatNumber(t.value, expr)));
-                case PLUS, MINUS, MULTIPLY, DIVIDE, RAISE -> {
+                case NUMBER -> {
+                    rpn.add(new Token(TokenKind.NUMBER, eatNumber(t.value, expr)));
+                    lastType = TokenKind.NUMBER;
+                }
+                case MINUS -> {
+                    boolean isUnary = (lastType == null
+                        || lastType == TokenKind.LPAREN
+                        || precedence.containsKey(lastType));
+
+                    if (isUnary && !expr.isEmpty() && expr.peek().type == TokenKind.NUMBER) {
+                        Token nextNum = expr.poll();
+                        double val = eatNumber(nextNum.value, expr);
+                        rpn.add(new Token(TokenKind.NUMBER, -val));
+                        lastType = TokenKind.NUMBER;
+                    } else {
+                        while (!operators.isEmpty()
+                            && operators.peek().type != TokenKind.LPAREN
+                            && (precedence.get(operators.peek().type) > precedence.get(t.type)
+                            || ((precedence.get(operators.peek().type).equals(precedence.get(t.type)) && t.type != TokenKind.RAISE)))) {
+                            rpn.add(operators.pop());
+                        }
+                        operators.push(t);
+                        lastType = TokenKind.MINUS;
+                    }
+                }
+                case PLUS, MULTIPLY, DIVIDE, RAISE -> {
                     while (!operators.isEmpty()
                         && operators.peek().type != TokenKind.LPAREN
                         && (precedence.get(operators.peek().type) > precedence.get(t.type)
@@ -144,17 +191,23 @@ public class SimpleFX extends Application {
                         rpn.add(operators.pop());
                     }
                     operators.push(t);
+                    lastType = t.type;
                 }
-                case LPAREN -> operators.push(t);
+                case LPAREN -> {
+                    operators.push(t);
+                    lastType = TokenKind.LPAREN;
+                }
                 case RPAREN -> {
                     while (!operators.isEmpty() && operators.peek().type != TokenKind.LPAREN) {
                         rpn.add(operators.pop());
                     }
                     operators.pop();
+                    lastType = TokenKind.RPAREN;
                 }
                 default -> throw new IllegalStateException("Unexpected value: " + t.type);
             }
         }
+
         while (!operators.isEmpty()) {
             rpn.add(operators.pop());
         }
@@ -172,7 +225,6 @@ public class SimpleFX extends Application {
                     double b = evalStack.pop();
                     double a = evalStack.pop();
                     evalStack.push(a - b);
-
                 }
                 case MULTIPLY -> {
                     double b = evalStack.pop();
@@ -306,7 +358,7 @@ public class SimpleFX extends Application {
 
         Scene scene = new Scene(root, 300, 250);
 
-        stage.setTitle("My First JavaFX App");
+        stage.setTitle("Calculator");
         stage.setScene(scene);
         stage.show();
     }
