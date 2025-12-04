@@ -19,6 +19,7 @@ public class SimpleFX extends Application {
     final Map<TokenKind, Integer> precedence = Map.of(
         TokenKind.PLUS, 2,
         TokenKind.MINUS, 2,
+        TokenKind.NEGATE, 2,
         TokenKind.MULTIPLY, 3,
         TokenKind.DIVIDE, 3,
         TokenKind.RAISE, 4
@@ -64,9 +65,30 @@ public class SimpleFX extends Application {
                     Token last = ((LinkedList<Token>) expression).getLast();
                     if (last.type == TokenKind.RPAREN) {
                         expression.add(new Token(TokenKind.MULTIPLY, ""));
+                    } else if (last.type == TokenKind.NUMBER) {
+                        token.decimal = last.decimal;
+                    } else if (last.type == TokenKind.DECIMAL) {
+                        token.decimal = true;
                     }
                 }
                 expression.add(token);
+            }
+            case TokenKind.DECIMAL -> {
+                token.decimal = true;
+                if (!expression.isEmpty()) {
+                    Token last = ((LinkedList<Token>) expression).getLast();
+                    if (last.type == TokenKind.NUMBER || last.type == TokenKind.DECIMAL) {
+                        if (!last.decimal) {
+                            expression.add(token);
+                        }
+                    } else {
+                        expression.add(new Token(TokenKind.NUMBER, 0, ""));
+                        expression.add(token);
+                    }
+                } else {
+                    expression.add(new Token(TokenKind.NUMBER, 0, ""));
+                    expression.add(token);
+                }
             }
             case TokenKind.MULTIPLY, TokenKind.DIVIDE, TokenKind.PLUS, TokenKind.RAISE, TokenKind.MINUS -> {
                 if (!expression.isEmpty()) {
@@ -74,6 +96,8 @@ public class SimpleFX extends Application {
                     if (!operators.contains(last.type)) {
                         expression.add(token);
                     }
+                } else if (token.type == TokenKind.MINUS) {
+                    expression.add(token);
                 }
             }
             default -> {
@@ -167,16 +191,17 @@ public class SimpleFX extends Application {
                         || lastType == TokenKind.LPAREN
                         || precedence.containsKey(lastType));
 
-                    if (isUnary && !expr.isEmpty() && expr.peek().type == TokenKind.NUMBER) {
-                        Token nextNum = expr.poll();
-                        double val = eatNumber(nextNum.value, expr);
-                        rpn.add(new Token(TokenKind.NUMBER, -val));
-                        lastType = TokenKind.NUMBER;
+                    if (isUnary) {
+                        while (!operators.isEmpty() && operators.peek().type != TokenKind.LPAREN && (precedence.get(operators.peek().type) > precedence.get(TokenKind.NEGATE) || precedence.get(operators.peek().type).equals(precedence.get(TokenKind.NEGATE)))) {
+                            rpn.add(operators.pop());
+                        }
+                        operators.push(new Token(TokenKind.NEGATE, "-"));
+                        lastType = TokenKind.NEGATE;
                     } else {
                         while (!operators.isEmpty()
                             && operators.peek().type != TokenKind.LPAREN
                             && (precedence.get(operators.peek().type) > precedence.get(t.type)
-                            || ((precedence.get(operators.peek().type).equals(precedence.get(t.type)) && t.type != TokenKind.RAISE)))) {
+                            || (precedence.get(operators.peek().type).equals(precedence.get(t.type))))) {
                             rpn.add(operators.pop());
                         }
                         operators.push(t);
@@ -225,6 +250,10 @@ public class SimpleFX extends Application {
                     double b = evalStack.pop();
                     double a = evalStack.pop();
                     evalStack.push(a - b);
+                }
+                case NEGATE -> {
+                    double a = evalStack.pop();
+                    evalStack.push(-a);
                 }
                 case MULTIPLY -> {
                     double b = evalStack.pop();
@@ -377,6 +406,7 @@ public class SimpleFX extends Application {
         LPAREN,
         RPAREN,
         DECIMAL,
+        NEGATE,
     }
 
     static class StyledButton extends Button {
@@ -420,11 +450,18 @@ public class SimpleFX extends Application {
         String text;
         int value = 0;
         double dvalue = 0.0;
+        boolean decimal = false;
 
         public Token(TokenKind type, int value) {
             this.type = type;
             this.value = value;
             this.text = Integer.toString(value);
+        }
+
+        public Token(TokenKind type, int value, String text) {
+            this.type = type;
+            this.value = value;
+            this.text = text;
         }
 
         public Token(TokenKind type, double dvalue) {
