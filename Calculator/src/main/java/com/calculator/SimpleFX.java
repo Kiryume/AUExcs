@@ -25,36 +25,69 @@ public class SimpleFX extends Application {
     );
 
     private void addToken(Token token) {
-//        if (token.type == TokenKind.LPAREN) {
-//            if (!expression.isEmpty()) {
-//                Token last = ((LinkedList<Token>) expression).getLast();
-//                if (parenthesisBalance == 0) {
-//                    if (last.type == TokenKind.NUMBER || last.type == TokenKind.RPAREN) {
-//                        expression.add(new Token(TokenKind.MULTIPLY, "*"));
-//                        expression.add(token);
-//                        parenthesisBalance++;
-//                    } else {
-//                        expression.add(token);
-//                        parenthesisBalance++;
-//                    }
-//                } else {
-//                    if (last.type == TokenKind.NUMBER || last.type == TokenKind.RPAREN) {
-//                        expression.add(new Token(TokenKind.RPAREN, ")"));
-//                        parenthesisBalance--;
-//                    } else {
-//                        expression.add(token);
-//                        parenthesisBalance++;
-//                    }
-//                }
-//            } else {
-//                expression.add(token);
-//                parenthesisBalance++;
-//            }
-//        } else {
-//            expression.add(token);
-//        }
-        expression.add(token);
+        if (token.type == TokenKind.LPAREN) {
+            if (!expression.isEmpty()) {
+                Token last = ((LinkedList<Token>) expression).getLast();
+                if (parenthesisBalance == 0) {
+                    if (last.type == TokenKind.NUMBER || last.type == TokenKind.RPAREN) {
+                        expression.add(new Token(TokenKind.MULTIPLY, ""));
+                        expression.add(token);
+                        parenthesisBalance++;
+                    } else {
+                        expression.add(token);
+                        parenthesisBalance++;
+                    }
+                } else {
+                    if (last.type == TokenKind.NUMBER || last.type == TokenKind.RPAREN) {
+                        expression.add(new Token(TokenKind.RPAREN, ")"));
+                        parenthesisBalance--;
+                    } else {
+                        expression.add(token);
+                        parenthesisBalance++;
+                    }
+                }
+            } else {
+                expression.add(token);
+                parenthesisBalance++;
+            }
+        } else if (token.type == TokenKind.NUMBER) {
+          if (!expression.isEmpty()) {
+                Token last = ((LinkedList<Token>) expression).getLast();
+                if (last.type == TokenKind.RPAREN) {
+                    expression.add(new Token(TokenKind.MULTIPLY, ""));
+                }
+            }
+            expression.add(token);
+        } else {
+            expression.add(token);
+        }
         updateDisplay();
+    }
+
+    private void deleteToken() {
+        if (!expression.isEmpty()) {
+            Token removed = ((LinkedList<Token>) expression).removeLast();
+            if (removed.type == TokenKind.LPAREN) {
+                parenthesisBalance--;
+            } else if (removed.type == TokenKind.RPAREN) {
+                parenthesisBalance++;
+            }
+            if (!expression.isEmpty()) {
+                Token last = ((LinkedList<Token>) expression).getLast();
+                if (last.text == "") {
+                    ((LinkedList<Token>) expression).removeLast();
+                }
+            }
+            updateDisplay();
+            System.out.println("Deleted token: " + removed.text);
+        }
+    }
+
+    private void clearExpression() {
+        expression.clear();
+        parenthesisBalance = 0;
+        updateDisplay();
+        System.out.println("Cleared expression");
     }
 
     private void updateDisplay() {
@@ -175,9 +208,7 @@ public class SimpleFX extends Application {
 
         var clearBtn = new StyledButton("AC");
         clearBtn.setOnAction(event -> {
-            expression.clear();
-            updateDisplay();
-            System.out.println("Cleared expression");
+            clearExpression();
         });
         var equalsBtn = new StyledButton("=");
         equalsBtn.setOnAction(event -> {
@@ -219,15 +250,13 @@ public class SimpleFX extends Application {
         var deleteBtn = new StyledButton("DEL");
         deleteBtn.setOnAction(event -> {
             if (!expression.isEmpty()) {
-                Token removed = ((LinkedList<Token>) expression).removeLast();
-                updateDisplay();
-                System.out.println("Deleted token: " + removed.text);
+                deleteToken();
             }
         });
         var btns = new Button[][]{
             {
                 clearBtn,
-                new TokenButton(TokenKind.LPAREN, "()"),
+                new TokenButton(TokenKind.LPAREN, "(", "()"),
                 new TokenButton(TokenKind.RAISE, "^"),
                 new TokenButton(TokenKind.DIVIDE, "/"),
             },
@@ -313,6 +342,11 @@ public class SimpleFX extends Application {
 
     class TokenButton extends StyledButton {
         Token token;
+
+        TokenButton(TokenKind type, String tokenText, String buttonText) {
+            this(type, tokenText);
+            this.setText(buttonText);
+        }
 
         TokenButton(TokenKind type, String text) {
             token = new Token(type, text);
