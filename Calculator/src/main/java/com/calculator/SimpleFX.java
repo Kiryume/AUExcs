@@ -24,7 +24,7 @@ public class SimpleFX extends Application {
         TokenKind.DIVIDE, 3,
         TokenKind.RAISE, 4
     );
-    final List<TokenKind> operators = List.of(
+    final List<TokenKind> operations = List.of(
         TokenKind.PLUS,
         TokenKind.MINUS,
         TokenKind.MULTIPLY,
@@ -82,18 +82,21 @@ public class SimpleFX extends Application {
                             expression.add(token);
                         }
                     } else {
-                        expression.add(new Token(TokenKind.NUMBER, 0, ""));
+                        addToken(new Token(TokenKind.NUMBER, 0, ""));
                         expression.add(token);
                     }
                 } else {
-                    expression.add(new Token(TokenKind.NUMBER, 0, ""));
+                    addToken(new Token(TokenKind.NUMBER, 0, ""));
                     expression.add(token);
                 }
             }
             case TokenKind.MULTIPLY, TokenKind.DIVIDE, TokenKind.PLUS, TokenKind.RAISE, TokenKind.MINUS -> {
                 if (!expression.isEmpty()) {
                     Token last = ((LinkedList<Token>) expression).getLast();
-                    if (!operators.contains(last.type)) {
+                    if (!operations.contains(last.type)) {
+                        expression.add(token);
+                    } else {
+                        ((LinkedList<Token>) expression).removeLast();
                         expression.add(token);
                     }
                 } else if (token.type == TokenKind.MINUS) {
@@ -175,6 +178,10 @@ public class SimpleFX extends Application {
         Queue<Token> rpn = new LinkedList<>();
         Stack<Token> operators = new Stack<>();
         Queue<Token> expr = new LinkedList<>(this.expression);
+        Token last = ((LinkedList<Token>) expr).getLast();
+        if (operations.contains(last.type)) {
+            ((LinkedList<Token>) expr).removeLast();
+        }
 
         TokenKind lastType = null;
 
